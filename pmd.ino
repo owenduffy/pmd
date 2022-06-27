@@ -1,4 +1,5 @@
-#define VERSION "0.02"
+
+#define VERSION "0.03"
 #define VREF 1.10
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64// OLED display height, in pixels
@@ -7,6 +8,7 @@
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
 #include <EEPROM.h>
+
 
 //Owen Duffy 2022/06/22
 //OLED variation
@@ -20,7 +22,7 @@ Adafruit_SSD1306 display(SCREEN_WIDTH,SCREEN_HEIGHT,&Wire,OLED_RESET);
 int sensorPin=A0; // select the input pin for the detector
 unsigned AdcAccumulator; // variable to accumulate the value coming from the sensor
 float vin;
-int i;
+int i,barh=SCREEN_HEIGHT/3;
 
 struct{
   uint16_t ever;
@@ -72,7 +74,7 @@ void setup(){
 }
 
 void loop() {
-  int prec,barh;
+  int prec;
   float pwr,dbm;
   AdcAccumulator=0;
   for(i=eeprom.avgn;i--;){
@@ -84,36 +86,40 @@ void loop() {
   vin=(float)AdcAccumulator/(1024+eeprom.adcadj)*VREF/eeprom.avgn;
   if(vin<0.002)vin=0.0;
   pwr=eeprom.a+eeprom.b*vin+eeprom.c*pow(vin,2);
-  if(pwr<0.001) pwr=0.0;
-  if(pwr>0.001){
+  if(pwr<0.002){
+    pwr=0.0;
+    dbm=-1;
+    prec=3;
+    }
+  else{
     dbm=10*log10(pwr/0.001);
     prec=5-floor(dbm/10);
-  }
- else {
-   dbm=-1;
-   prec=3;
- }
+    }
   // print a message to the display.
   display.clearDisplay();
   display.setCursor(0, 0);
   display.setTextSize(2);      // 2:1 pixel scale
-  display.print(pwr,prec);
-  display.print(" W\n");
-//  display.setTextSize(1);      // 2:1 pixel scale
-//  display.setCursor(0, SCREEN_HEIGHT/2+2);
+  if(pwr<0.002)
+    display.print("<0.002 W");
+  else{
+    display.print(pwr,prec);
+    display.print(" W");
+    }
   display.setCursor(0,21);
   if(dbm>-1){
     display.print(dbm,1);
     display.print(" dBm ");
     int w=(dbm*2.5)+0.5;
     // Draw filled part of bar starting from left of screen:
-    barh=display.height()/3;
     display.fillRect(0,display.height()-barh,w,barh,1);
-    display.fillRect(w,display.height()-barh,display.width()-w,barh,0);
+    display.fillRect(w+1,display.height()-barh,display.width()-w,barh,0);
     for(int i=24;i<128;i=i+25)
       display.fillRect(i,display.height()-barh/2,1,barh/2,0);
   }
+  else
+    display.fillRect(0,display.height()-barh,display.width(),barh,0);
+
  display.display();
  // delay(500);
-  }
+}
 
