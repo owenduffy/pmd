@@ -1,14 +1,12 @@
 
-#define VERSION "0.03"
-#define VREF 1.10
+#define VERSION "0.04"
+#define USEEEPROM
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64// OLED display height, in pixels
 
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <EEPROM.h>
-
 
 //Owen Duffy 2022/06/22
 //OLED variation
@@ -23,69 +21,88 @@ int sensorPin=A0; // select the input pin for the detector
 unsigned AdcAccumulator; // variable to accumulate the value coming from the sensor
 float vin;
 int i,barh=SCREEN_HEIGHT/3;
+#if defined(__SAMD21G18A__)
+HardwareSerial &MySerial=SerialUSB;
+#define ADCREF 1.0
+#endif
+#if defined(__AVR_ATmega328P__)
+#define ADCREF 1.10
+HardwareSerial &MySerial=Serial;
+#include <EEPROM.h>
+#endif
 
 struct{
-  uint16_t ever;
-  uint16_t avgn;
-  int adcadj;
-  uint16_t order;
-  float a,b,c,d;
-} eeprom;
+  uint16_t ever=0;
+  uint16_t avgn=5;
+  int adcadj=0;
+  uint16_t order=2;
+  float a=-3.99322588231898e-5,b=0.24201168460174,c=33.900362365621,d=0.0;
+} parms;
 
 void setup(){
   int dver;
   
+  pinMode(A0,INPUT);
+#if defined(__SAMD21G18A__)
+  analogReference(INTERNAL1V0);
+  analogReadResolution(12);
+#endif
+#if defined(__AVR_ATmega328P__)
   analogReference(INTERNAL);
+#endif
   // start serial port at 9600 bps and wait for port to open:
-  Serial.begin(9600);
-  while (!Serial) {;} // wait for serial port to connect. Needed for Leonardo only
-  Serial.println("Serial started.");
+  MySerial.begin(9600);
+  while (!MySerial) {;} // wait for serial port to connect. Needed for native USB port only
+  MySerial.println("Serial started.");
   //SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
-    Serial.println(F("SSD1306 allocation failed"));
+    MySerial.println(F("SSD1306 allocation failed"));
     while(1); // loop forever
   }
   display.clearDisplay();
   display.setTextSize(2);// normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); //draw white text
   display.cp437(true);//use full 256 char 'Code Page 437' font
-  display.print("pmd v");
+  display.print("pmd\nv");
   display.println(VERSION);
   display.display();
   delay(1000);
+#if defined(__AVR_ATmega328P__) && defined(USEEEPROM)
   //get the data block from eeprom
   dver=EEPROM.read(0);
   if(dver!=1){
-    Serial.print(F("Unsupported EEPROM version: "));
-    Serial.println(dver);
+    MySerial.print(F("Unsupported EEPROM version: "));
+    MySerial.println(dver);
     while(1);
   }
-  EEPROM.get(0,eeprom);
-  Serial.print("adcadj: ");
-  Serial.println(eeprom.adcadj);
-  Serial.print("a: ");
-  Serial.println(eeprom.a,10);
-  Serial.print("b: ");
-  Serial.println(eeprom.b,10);
-  Serial.print("c: ");
-  Serial.println(eeprom.c,10);
-  Serial.print("d: ");
-  Serial.println(eeprom.d,10);
+  EEPROM.get(0,parms);
+  MySerial.println(F("Read EEPROM."));
+#endif
+  MySerial.print("adcadj: ");
+  MySerial.println(parms.adcadj);
+  MySerial.print("a: ");
+  MySerial.println(parms.a,10);
+  MySerial.print("b: ");
+  MySerial.println(parms.b,10);
+  MySerial.print("c: ");
+  MySerial.println(parms.c,10);
+  MySerial.print("d: ");
+  MySerial.println(parms.d,10);
 }
 
 void loop() {
   int prec;
   float pwr,dbm;
   AdcAccumulator=0;
-  for(i=eeprom.avgn;i--;){
+  for(i=parms.avgn;i--;){
     // read the value from the detector
     AdcAccumulator+=analogRead(sensorPin);
     delay(100);
     }
   // calculate average vin
-  vin=(float)AdcAccumulator/(1024+eeprom.adcadj)*VREF/eeprom.avgn;
+  vin=(float)AdcAccumulator/(1024+parms.adcadj)*ADCREF/parms.avgn;
   if(vin<0.002)vin=0.0;
-  pwr=eeprom.a+eeprom.b*vin+eeprom.c*pow(vin,2);
+  pwr=parms.a+parms.b*vin+parms.c*pow(vin,2)+parms.d*pow(vin,3);
   if(pwr<0.002){
     pwr=0.0;
     dbm=-1;
