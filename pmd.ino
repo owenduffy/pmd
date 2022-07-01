@@ -1,5 +1,5 @@
 
-#define VERSION "0.04"
+#define VERSION "0.05"
 #define USEEEPROM
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64// OLED display height, in pixels
@@ -19,7 +19,7 @@
 Adafruit_SSD1306 display(SCREEN_WIDTH,SCREEN_HEIGHT,&Wire,OLED_RESET);
 int sensorPin=A0; // select the input pin for the detector
 unsigned AdcAccumulator; // variable to accumulate the value coming from the sensor
-float vin;
+float calfactor;
 int i,barh=SCREEN_HEIGHT/3;
 #if defined(__SAMD21G18A__)
 HardwareSerial &MySerial=SerialUSB;
@@ -40,15 +40,22 @@ struct{
 } parms;
 
 void setup(){
-  int dver;
+  float adcref;
+  long adcfs;
+  int ever;
   
-  pinMode(A0,INPUT);
 #if defined(__SAMD21G18A__)
+  pinMode(A0,INPUT);
   analogReference(INTERNAL1V0);
+  adcref=1.0;
   analogReadResolution(12);
+  adcfs=4096;
 #endif
 #if defined(__AVR_ATmega328P__)
+  pinMode(A0,INPUT);
   analogReference(INTERNAL);
+  adcref=1.10;
+  adcfs=1024;
 #endif
   // start serial port at 9600 bps and wait for port to open:
   MySerial.begin(9600);
@@ -69,10 +76,10 @@ void setup(){
   delay(1000);
 #if defined(__AVR_ATmega328P__) && defined(USEEEPROM)
   //get the data block from eeprom
-  dver=EEPROM.read(0);
-  if(dver!=1){
+  ever=EEPROM.read(0);
+  if(ever!=1){
     MySerial.print(F("Unsupported EEPROM version: "));
-    MySerial.println(dver);
+    MySerial.println(ever);
     while(1);
   }
   EEPROM.get(0,parms);
@@ -88,11 +95,12 @@ void setup(){
   MySerial.println(parms.c,10);
   MySerial.print("d: ");
   MySerial.println(parms.d,10);
+  calfactor=adcref/parms.avgn/(adcfs-parms.adcadj);
 }
 
 void loop() {
   int prec;
-  float pwr,dbm;
+  float vin,pwr,dbm;
   AdcAccumulator=0;
   for(i=parms.avgn;i--;){
     // read the value from the detector
@@ -100,7 +108,7 @@ void loop() {
     delay(100);
     }
   // calculate average vin
-  vin=(float)AdcAccumulator/(1024+parms.adcadj)*ADCREF/parms.avgn;
+  vin=(float)AdcAccumulator*calfactor;
   if(vin<0.002)vin=0.0;
   pwr=parms.a+parms.b*vin+parms.c*pow(vin,2)+parms.d*pow(vin,3);
   if(pwr<0.002){
