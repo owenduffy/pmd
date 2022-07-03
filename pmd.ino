@@ -1,5 +1,5 @@
 
-#define VERSION "0.05"
+#define VERSION "0.06"
 #define USEEEPROM
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64// OLED display height, in pixels
@@ -23,19 +23,18 @@ float calfactor;
 int i,barh=SCREEN_HEIGHT/3;
 #if defined(__SAMD21G18A__)
 HardwareSerial &MySerial=SerialUSB;
-#define ADCREF 1.0
 #endif
 #if defined(__AVR_ATmega328P__)
-#define ADCREF 1.10
 HardwareSerial &MySerial=Serial;
 #include <EEPROM.h>
 #endif
 
 struct{
   uint16_t ever=0;
-  uint16_t avgn=5;
-  int adcadj=0;
-  uint16_t order=2;
+  uint16_t avgn=4;
+  int adcoffsadj=0;
+  int adcgainadj=0;
+  uint16_t flags=0;
   float a=-3.99322588231898e-5,b=0.24201168460174,c=33.900362365621,d=0.0;
 } parms;
 
@@ -60,17 +59,18 @@ void setup(){
   // start serial port at 9600 bps and wait for port to open:
   MySerial.begin(9600);
   while (!MySerial) {;} // wait for serial port to connect. Needed for native USB port only
-  MySerial.println("Serial started.");
+  MySerial.println(F("Serial started."));
   //SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
   if(!display.begin(SSD1306_SWITCHCAPVCC, 0x3C)) { // Address 0x3C for 128x32
     MySerial.println(F("SSD1306 allocation failed"));
     while(1); // loop forever
   }
   display.clearDisplay();
+  display.display();
   display.setTextSize(2);// normal 1:1 pixel scale
   display.setTextColor(SSD1306_WHITE); //draw white text
   display.cp437(true);//use full 256 char 'Code Page 437' font
-  display.print("pmd\nv");
+  display.print(F("pmd\nv"));
   display.println(VERSION);
   display.display();
   delay(1000);
@@ -85,30 +85,33 @@ void setup(){
   EEPROM.get(0,parms);
   MySerial.println(F("Read EEPROM."));
 #endif
-  MySerial.print("adcadj: ");
-  MySerial.println(parms.adcadj);
-  MySerial.print("a: ");
+  MySerial.print(F("adcoffsadj: "));
+  MySerial.println(parms.adcoffsadj);
+  MySerial.print(F("adcgainadj: "));
+  MySerial.println(parms.adcgainadj);
+  MySerial.print(F("a: "));
   MySerial.println(parms.a,10);
-  MySerial.print("b: ");
+  MySerial.print(F("b: "));
   MySerial.println(parms.b,10);
-  MySerial.print("c: ");
+  MySerial.print(F("c: "));
   MySerial.println(parms.c,10);
-  MySerial.print("d: ");
+  MySerial.print(F("d: "));
   MySerial.println(parms.d,10);
-  calfactor=adcref/parms.avgn/(adcfs-parms.adcadj);
+  calfactor=adcref/parms.avgn/(adcfs-parms.adcgainadj);
 }
 
 void loop() {
   int prec;
   float vin,pwr,dbm;
-  AdcAccumulator=0;
+  long AdcAccumulator=0;
   for(i=parms.avgn;i--;){
     // read the value from the detector
     AdcAccumulator+=analogRead(sensorPin);
     delay(100);
     }
   // calculate average vin
-  vin=(float)AdcAccumulator*calfactor;
+    vin=((float)AdcAccumulator+(float)parms.adcoffsadj*(float)parms.avgn)*calfactor;
+
   if(vin<0.002)vin=0.0;
   pwr=parms.a+parms.b*vin+parms.c*pow(vin,2)+parms.d*pow(vin,3);
   if(pwr<0.002){
@@ -122,29 +125,27 @@ void loop() {
     }
   // print a message to the display.
   display.clearDisplay();
+  display.display();
   display.setCursor(0, 0);
-  display.setTextSize(2);      // 2:1 pixel scale
+  display.setTextSize(2);
   if(pwr<0.002)
-    display.print("<0.002 W");
+    display.print(F("<0.002 W"));
   else{
     display.print(pwr,prec);
-    display.print(" W");
+    display.print(F(" W"));
     }
   display.setCursor(0,21);
   if(dbm>-1){
     display.print(dbm,1);
-    display.print(" dBm ");
+    display.print(F(" dBm "));
     int w=(dbm*2.5)+0.5;
     // Draw filled part of bar starting from left of screen:
     display.fillRect(0,display.height()-barh,w,barh,1);
     display.fillRect(w+1,display.height()-barh,display.width()-w,barh,0);
     for(int i=24;i<128;i=i+25)
       display.fillRect(i,display.height()-barh/2,1,barh/2,0);
-  }
-  else
-    display.fillRect(0,display.height()-barh,display.width(),barh,0);
-
- display.display();
+      }
+    display.display();
  // delay(500);
 }
 
