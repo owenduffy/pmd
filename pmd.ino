@@ -1,5 +1,5 @@
 
-#define VERSION "0.06"
+#define VERSION "0.07"
 #define USEEEPROM
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64// OLED display height, in pixels
@@ -125,7 +125,6 @@ void loop() {
     }
   // print a message to the display.
   display.clearDisplay();
-  display.display();
   display.setCursor(0, 0);
   display.setTextSize(2);
   if(pwr<0.002)
@@ -141,10 +140,12 @@ void loop() {
     int w=(dbm*2.5)+0.5;
     // Draw filled part of bar starting from left of screen:
     display.fillRect(0,display.height()-barh,w,barh,1);
-    display.fillRect(w+1,display.height()-barh,display.width()-w,barh,0);
+    display.fillRect(w+1,display.height()-barh-1,display.width()-w,barh,0);
     for(int i=24;i<128;i=i+25)
-      display.fillRect(i,display.height()-barh/2,1,barh/2,0);
+      display.fillRect(i,display.height()-1-barh/2,1,barh/2,0);
       }
+    else
+      display.fillRect(0,display.height()-barh-1,display.width(),barh,0);
     display.display();
  // delay(500);
 }
