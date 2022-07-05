@@ -1,5 +1,5 @@
 
-#define VERSION "0.07"
+#define VERSION "0.08"
 #define USEEEPROM
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64// OLED display height, in pixels
@@ -32,6 +32,7 @@ HardwareSerial &MySerial=Serial;
 struct{
   uint16_t ever=0;
   uint16_t avgn=4;
+  float pmin=0.001;
   int adcoffsadj=0;
   int adcgainadj=0;
   uint16_t flags=0;
@@ -85,6 +86,8 @@ void setup(){
   EEPROM.get(0,parms);
   MySerial.println(F("Read EEPROM."));
 #endif
+  MySerial.print(F("pmin: "));
+  MySerial.println(parms.pmin);
   MySerial.print(F("adcoffsadj: "));
   MySerial.println(parms.adcoffsadj);
   MySerial.print(F("adcgainadj: "));
@@ -97,7 +100,7 @@ void setup(){
   MySerial.println(parms.c,10);
   MySerial.print(F("d: "));
   MySerial.println(parms.d,10);
-  calfactor=adcref/parms.avgn/(adcfs-parms.adcgainadj);
+  calfactor=adcref/parms.avgn/(float)(adcfs-parms.adcgainadj);
 }
 
 void loop() {
@@ -110,13 +113,11 @@ void loop() {
     delay(100);
     }
   // calculate average vin
-    vin=((float)AdcAccumulator+(float)parms.adcoffsadj*(float)parms.avgn)*calfactor;
-
-  if(vin<0.002)vin=0.0;
+  vin=((float)AdcAccumulator+(float)parms.adcoffsadj*(float)parms.avgn)*calfactor;
   pwr=parms.a+parms.b*vin+parms.c*pow(vin,2)+parms.d*pow(vin,3);
-  if(pwr<0.002){
+  if(pwr<parms.pmin){
     pwr=0.0;
-    dbm=-1;
+    dbm=-99;
     prec=3;
     }
   else{
@@ -127,16 +128,16 @@ void loop() {
   display.clearDisplay();
   display.setCursor(0, 0);
   display.setTextSize(2);
-  if(pwr<0.002)
-    display.print(F("<0.002 W"));
+  if(pwr<parms.pmin)
+    display.print(F("***W"));
   else{
     display.print(pwr,prec);
-    display.print(F(" W"));
+    display.print(F("W"));
     }
   display.setCursor(0,21);
-  if(dbm>-1){
+  if(dbm>-98){
     display.print(dbm,1);
-    display.print(F(" dBm "));
+    display.print(F("dBm"));
     int w=(dbm*2.5)+0.5;
     // Draw filled part of bar starting from left of screen:
     display.fillRect(0,display.height()-1-barh,w,barh,1);
