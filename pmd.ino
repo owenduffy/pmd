@@ -139,7 +139,7 @@ void loop() {
     display.print(F(" dBm "));
     int w=(dbm*2.5)+0.5;
     // Draw filled part of bar starting from left of screen:
-    display.fillRect(0,display.height()-barh,w,barh,1);
+    display.fillRect(0,display.height()-1-barh,w,barh,1);
 //    display.fillRect(w+1,display.height()-barh-1,display.width()-w,barh,0);
     for(int i=24;i<128;i=i+25)
       display.fillRect(i,display.height()-1-barh/2,1,barh/2,0);
