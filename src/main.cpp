@@ -87,7 +87,7 @@ void setup(){
   MySerial.println(F("Read EEPROM."));
 #endif
   MySerial.print(F("pmin: "));
-  MySerial.println(parms.pmin);
+  MySerial.println(parms.pmin,6);
   MySerial.print(F("adcoffsadj: "));
   MySerial.println(parms.adcoffsadj);
   MySerial.print(F("adcgainadj: "));
@@ -115,6 +115,12 @@ void loop() {
   // calculate average vin
   vin=((float)AdcAccumulator+(float)parms.adcoffsadj*(float)parms.avgn)*calfactor;
   pwr=parms.a+parms.b*vin+parms.c*pow(vin,2)+parms.d*pow(vin,3);
+  MySerial.print(F("AdcAccumulator: "));
+  MySerial.print(AdcAccumulator);
+  MySerial.print(F(", vin: "));
+  MySerial.print(vin,3);
+  MySerial.print(F(", pwr: "));
+  MySerial.println(pwr,3);
   if(pwr<parms.pmin){
     pwr=0.0;
     dbm=-99;
