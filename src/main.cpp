@@ -87,7 +87,7 @@ void setup(){
   MySerial.println(F("Read EEPROM."));
 #endif
   MySerial.print(F("pmin: "));
-  MySerial.println(parms.pmin,6);
+  MySerial.println(parms.pmin,10);
   MySerial.print(F("adcoffsadj: "));
   MySerial.println(parms.adcoffsadj);
   MySerial.print(F("adcgainadj: "));
@@ -118,9 +118,9 @@ void loop() {
   MySerial.print(F("AdcAccumulator: "));
   MySerial.print(AdcAccumulator);
   MySerial.print(F(", vin: "));
-  MySerial.print(vin,3);
+  MySerial.print(vin,10);
   MySerial.print(F(", pwr: "));
-  MySerial.println(pwr,3);
+  MySerial.println(pwr,10);
   if(pwr<parms.pmin){
     pwr=0.0;
     dbm=-99;
