@@ -1,5 +1,5 @@
 
-#define VERSION "0.08"
+#define VERSION "0.09"
 #define USEEEPROM
 #define SCREEN_WIDTH 128 // OLED display width, in pixels
 #define SCREEN_HEIGHT 64// OLED display height, in pixels
@@ -7,6 +7,7 @@
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
+#include <ArduinoUniqueID.h>
 
 //Owen Duffy 2022/06/22
 //OLED variation
@@ -101,6 +102,15 @@ void setup(){
   MySerial.print(F("d: "));
   MySerial.println(parms.d,10);
   calfactor=adcref/parms.avgn/(float)(adcfs-parms.adcgainadj);
+
+  //print id to log for cal purposes
+  MySerial.print("UniqueID: ");
+	for (size_t i=0;i<UniqueIDsize;i++){
+		if (UniqueID[i]<0x10)
+			MySerial.print("0");
+		MySerial.print(UniqueID[i],HEX);
+	}
+	MySerial.println();
 }
 
 void loop() {
